@@ -71,7 +71,7 @@ trkml-hough: mean score: 0.13243074388908138
 
 real  1m21.033s
 user  1m22.541s
-sys	  0m0.569s
+sys   0m0.569s
 ```
 
 Compare to the Python version:
@@ -91,7 +91,7 @@ Mean score: 0.132
 
 real  7m12.351s
 user  7m10.400s
-sys	  0m0.828s
+sys   0m0.828s
 ```
 
 ### Going parallel
@@ -112,7 +112,7 @@ trkml-hough: mean score: 0.13243074388908138
 
 real  0m30.081s
 user  1m26.658s
-sys	  0m0.741s
+sys   0m0.741s
 ```
 
 [cern]: https://home.cern
