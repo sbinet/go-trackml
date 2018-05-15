@@ -1,5 +1,8 @@
 # go-trackml
 
+[![GoDoc](https://godoc.org/github.com/sbinet/go-trackml?status.svg)](https://godoc.org/github.com/sbinet/go-trackml)
+
+
 `trackml` is a Go package to simplify working with the [High Energy Physics Tracking Machine Learning challenge][kaggle_trachml].
 
 For more informations about the minute details of what `go-trackml` tries to do, please have a look at the Python version:
@@ -33,6 +36,7 @@ Usage:
 Examples:
 
   $> trkml-hough ./example_standard/dataset/event000000200
+  $> trkml-hough -npcus=+1 ./example_standard/dataset/event000000200
   $> trkml-hough -npcus=-1 ./example_standard/dataset/event000000200
 
 Options:

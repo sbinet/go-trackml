@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package trackml exposes facilities to ease handling of TrackML datasets.
 package trackml
 
 import (
@@ -47,14 +48,17 @@ type Truth struct {
 	Weight     float64
 }
 
+// Event stores informations about a complete HEP event.
 type Event struct {
-	ID    int
-	Hits  []Hit
-	Cells []Cell
-	Ps    []Particle
-	Mcs   []Truth
+	ID    int        // event id
+	Hits  []Hit      // collection of hits for this event
+	Cells []Cell     // collection of cells for this event
+	Ps    []Particle // collection of reconstructed particles for this event
+	Mcs   []Truth    // Monte-Carlo truth for this event
 }
 
+// Delete zeroes all internal data of an Event and
+// prepares that Event to be collected by the Garbage Collector.
 func (evt *Event) Delete() {
 	evt.Hits = nil
 	evt.Cells = nil
@@ -62,6 +66,8 @@ func (evt *Event) Delete() {
 	evt.Mcs = nil
 }
 
+// ReadMcEvent reads a complete Event value from the given path+prefix,
+// including Monte-Carlo informations.
 func ReadMcEvent(fname string) (Event, error) {
 	var (
 		evt Event
@@ -81,6 +87,8 @@ func ReadMcEvent(fname string) (Event, error) {
 	return evt, err
 }
 
+// ReadEvent reads a complete Event value from the given path+prefix,
+// but without the Monte-Carlo informations.
 func ReadEvent(fname string) (Event, error) {
 	var (
 		evt Event
@@ -235,6 +243,21 @@ func readMcTruth(fname string) ([]Truth, error) {
 // EventReader is a function to read an event from a path
 type EventReader func(path string) (Event, error)
 
+// Dataset is an Event container.
+//
+// Dataset logically contains many Events, iterating throught the list of
+// Events via the Next method.
+//
+// Example:
+//
+//   ds, err := NewDataset("./example_standard/dataset", 0, -1, nil)
+//   for ds.Next() {
+//       evt := ds.Event()
+//   }
+//   if err := ds.Err(); err != nil {
+//       panic(err)
+//   }
+//
 type Dataset struct {
 	path  string
 	names []string
@@ -274,8 +297,12 @@ func (ds *Dataset) Err() error {
 	return ds.err
 }
 
-// NewDataset returns the list of datasets from a directory or zip file.
-// Dataset uses the reader function to load events from a path.
+// NewDataset returns the list of datasets from name, a directory or zip file,
+// containing many events data.
+//
+// beg and end control the number of events to iterate over.
+//
+// The returned Dataset will use the reader function to load events from a path.
 // If reader is nil, ReadMcEvent is used.
 func NewDataset(name string, beg, end int, reader EventReader) (Dataset, error) {
 	if reader == nil {
@@ -317,7 +344,7 @@ func NewDataset(name string, beg, end int, reader EventReader) (Dataset, error) 
 			ds.names[i] = n[:len(n)-len("-hits.csv")]
 		}
 	default:
-
+		return ds, errors.Wrapf(err, "could not handle path %q", name)
 	}
 	return ds, nil
 }
