@@ -6,6 +6,11 @@ package trackml
 
 import (
 	"io"
+	"os"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/pkg/errors"
 	"go-hep.org/x/hep/csvutil"
@@ -42,39 +47,72 @@ type Truth struct {
 	Weight     float64
 }
 
-func ReadEvent(fname string) ([]Hit, []Cell, []Particle, []Truth, error) {
-	var (
-		hits  []Hit
-		cells []Cell
-		parts []Particle
-		mcs   []Truth
-		err   error
-	)
-
-	hits, err = ReadHits(fname + "-hits.csv")
-	if err != nil {
-		return nil, nil, nil, nil, errors.Wrapf(err, "could not read hits")
-	}
-
-	cells, err = ReadCells(fname + "-cells.csv")
-	if err != nil {
-		return nil, nil, nil, nil, errors.Wrapf(err, "could not read cells")
-	}
-
-	parts, err = ReadParticles(fname + "-particles.csv")
-	if err != nil {
-		return nil, nil, nil, nil, errors.Wrapf(err, "could not read particles")
-	}
-
-	mcs, err = ReadMcTruth(fname + "-truth.csv")
-	if err != nil {
-		return nil, nil, nil, nil, errors.Wrapf(err, "could not read truth")
-	}
-
-	return hits, cells, parts, mcs, err
+type Event struct {
+	ID    int
+	Hits  []Hit
+	Cells []Cell
+	Ps    []Particle
+	Mcs   []Truth
 }
 
-func ReadHits(fname string) ([]Hit, error) {
+func (evt *Event) Delete() {
+	evt.Hits = nil
+	evt.Cells = nil
+	evt.Ps = nil
+	evt.Mcs = nil
+}
+
+func ReadMcEvent(fname string) (Event, error) {
+	var (
+		evt Event
+		err error
+	)
+
+	evt, err = ReadEvent(fname)
+	if err != nil {
+		return evt, errors.Wrapf(err, "could not read hits")
+	}
+
+	evt.Mcs, err = readMcTruth(fname + "-truth.csv")
+	if err != nil {
+		return evt, errors.Wrapf(err, "could not read truth")
+	}
+
+	return evt, err
+}
+
+func ReadEvent(fname string) (Event, error) {
+	var (
+		evt Event
+		err error
+	)
+
+	id := filepath.Base(fname)
+	id = strings.TrimLeft(id, "event")
+	evt.ID, err = strconv.Atoi(id)
+	if err != nil {
+		return evt, errors.Wrapf(err, "could not infer event ID")
+	}
+
+	evt.Hits, err = readHits(fname + "-hits.csv")
+	if err != nil {
+		return evt, errors.Wrapf(err, "could not read hits")
+	}
+
+	evt.Cells, err = readCells(fname + "-cells.csv")
+	if err != nil {
+		return evt, errors.Wrapf(err, "could not read cells")
+	}
+
+	evt.Ps, err = readParticles(fname + "-particles.csv")
+	if err != nil {
+		return evt, errors.Wrapf(err, "could not read particles")
+	}
+
+	return evt, err
+}
+
+func readHits(fname string) ([]Hit, error) {
 	var hits []Hit
 	tbl, err := csvutil.Open(fname)
 	if err != nil {
@@ -104,7 +142,7 @@ func ReadHits(fname string) ([]Hit, error) {
 	return hits, nil
 }
 
-func ReadCells(fname string) ([]Cell, error) {
+func readCells(fname string) ([]Cell, error) {
 	var cells []Cell
 	tbl, err := csvutil.Open(fname)
 	if err != nil {
@@ -134,7 +172,7 @@ func ReadCells(fname string) ([]Cell, error) {
 	return cells, nil
 }
 
-func ReadParticles(fname string) ([]Particle, error) {
+func readParticles(fname string) ([]Particle, error) {
 	var ps []Particle
 	tbl, err := csvutil.Open(fname)
 	if err != nil {
@@ -164,7 +202,7 @@ func ReadParticles(fname string) ([]Particle, error) {
 	return ps, nil
 }
 
-func ReadMcTruth(fname string) ([]Truth, error) {
+func readMcTruth(fname string) ([]Truth, error) {
 	var mcs []Truth
 	tbl, err := csvutil.Open(fname)
 	if err != nil {
@@ -192,4 +230,94 @@ func ReadMcTruth(fname string) ([]Truth, error) {
 	}
 
 	return mcs, nil
+}
+
+// EventReader is a function to read an event from a path
+type EventReader func(path string) (Event, error)
+
+type Dataset struct {
+	path  string
+	names []string
+
+	readEvent EventReader
+
+	cur int
+	evt Event
+	err error
+}
+
+func (ds *Dataset) Next() bool {
+	if ds.err != nil {
+		return false
+	}
+
+	ds.cur++
+	if ds.cur >= len(ds.names) {
+		return false
+	}
+	evt, err := ds.readEvent(ds.names[ds.cur])
+	if err != nil {
+		ds.err = err
+		return false
+	}
+	ds.evt = evt
+	return true
+}
+
+// Event returns the current event from the dataset.
+// The returned value is valid until a call to Next.
+func (ds *Dataset) Event() Event {
+	return ds.evt
+}
+
+func (ds *Dataset) Err() error {
+	return ds.err
+}
+
+// NewDataset returns the list of datasets from a directory or zip file.
+// Dataset uses the reader function to load events from a path.
+// If reader is nil, ReadMcEvent is used.
+func NewDataset(name string, beg, end int, reader EventReader) (Dataset, error) {
+	if reader == nil {
+		reader = ReadMcEvent
+	}
+	ds := Dataset{
+		path:      name,
+		cur:       -1,
+		readEvent: reader,
+	}
+
+	f, err := os.Open(name)
+	if err != nil {
+		return ds, errors.WithStack(err)
+	}
+	defer f.Close()
+
+	fi, err := f.Stat()
+	if err != nil {
+		return ds, errors.WithStack(err)
+	}
+
+	var names []string
+	switch {
+	case fi.IsDir():
+		names, err = filepath.Glob(filepath.Join(name, "*-hits.csv"))
+		// names, err = f.Readdirnames(-1)
+		if err != nil {
+			return ds, err
+		}
+		sort.Strings(names)
+		ds.names = names
+		ds.names = ds.names[beg:]
+		if end == -1 || end > len(ds.names) {
+			end = len(ds.names)
+		}
+		ds.names = ds.names[:end]
+		for i, n := range ds.names {
+			ds.names[i] = n[:len(n)-len("-hits.csv")]
+		}
+	default:
+
+	}
+	return ds, nil
 }

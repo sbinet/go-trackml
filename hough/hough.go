@@ -5,8 +5,6 @@
 package hough
 
 import (
-	"encoding/json"
-	"log"
 	"math"
 	"sort"
 
@@ -103,13 +101,21 @@ func (hough *Hough) Calc(tracks [][]int, theta float64, nbinsR0Inv, nbinsGamma, 
 	hough.fiducialCut(hough.ComboDigiN, hough.R0InvDigi, nbinsR0Inv)
 	hough.fiducialCut(hough.ComboDigiN, hough.GammaDigi, nbinsGamma)
 
-	set := make(map[int][]int)
+	iset := make(map[int]int, len(hough.ComboDigi)/2)
 	for i, digi := range hough.ComboDigi {
 		if hough.ComboDigiN[i] < minHits {
 			continue
 		}
-		// id := hough.HitIDs[i]
-		//		log.Printf("hit[%d]=%v digi-n=%v digi=%v", i, id, hough.ComboDigiN[i], digi)
+		iset[digi]++
+	}
+	set := make(map[int][]int, len(iset))
+	for k, v := range iset {
+		set[k] = make([]int, 0, v)
+	}
+	for i, digi := range hough.ComboDigi {
+		if hough.ComboDigiN[i] < minHits {
+			continue
+		}
 		set[digi] = append(set[digi], i)
 	}
 	if len(set) > 0 {
@@ -117,32 +123,26 @@ func (hough *Hough) Calc(tracks [][]int, theta float64, nbinsR0Inv, nbinsGamma, 
 		for _, trk := range set {
 			sort.Ints(trk)
 			trks = append(trks, trk)
-			//	if trk[0] == 36461 {
-			//		log.Printf("digi=%v trk=%v", digi, trk)
-			//		log.Printf("digi=%v id=%v %v", digi, hough.ComboDigi[trk[0]], hough.ComboDigiN[trk[0]])
-			//	}
 		}
-		//fmt.Fprintf(hough.FF, "theta=%v tracks=%v\n", theta, len(trks))
-		//		log.Printf(">>> theta=%v trks=%v", theta, trks)
 		tracks = append(tracks, trks...)
 	}
 	return tracks
 }
 
-func (h *Hough) Dump(fname string) {
-	f, err := os.Create(fname)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer f.Close()
-
-	enc := json.NewEncoder(f)
-	enc.SetIndent("", " ")
-	err = enc.Encode(h)
-	if err = f.Close(); err != nil {
-		log.Fatal(err)
-	}
-}
+// func (h *Hough) Dump(fname string) {
+// 	f, err := os.Create(fname)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	defer f.Close()
+//
+// 	enc := json.NewEncoder(f)
+// 	enc.SetIndent("", " ")
+// 	err = enc.Encode(h)
+// 	if err = f.Close(); err != nil {
+// 		log.Fatal(err)
+// 	}
+// }
 
 func cart2Cyl(xs, ys []float64) (rs, phis []float64) {
 	rs = make([]float64, len(xs))
@@ -187,9 +187,9 @@ func (h *Hough) combineDigi(dst []int, cols [][]int) {
 
 func (h *Hough) countDigi(dst []int) {
 	if dst == nil {
-		dst = make([]int, len(h.HitIDs))
+		dst = make([]int, len(h.ComboDigi))
 	}
-	if len(dst) != len(h.HitIDs) {
+	if len(dst) != len(h.ComboDigi) {
 		panic(errLenMismatch)
 	}
 	set := make(map[int]int, len(h.HitIDs)/2)
