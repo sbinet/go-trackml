@@ -31,7 +31,7 @@ trkml-hough uses a Hough transform to make predictions.
 
 Usage:
 
-  $> trkml-hough [OPTIONS] <path-to-dataset> <evtid-prefix>
+  $> trkml-hough [OPTIONS] <path-to-dataset> <evtid-prefix> [<path-to-test-dataset]
 
 Examples:
 
@@ -48,6 +48,8 @@ Options:
     	enable CPU profiling
   -prof-mem
     	enable MEM profiling
+  -submit
+     	create a submission file
 
 $> ll example_standard/dataset/
 total 56M

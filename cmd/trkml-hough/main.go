@@ -8,7 +8,7 @@
 //
 // Usage:
 //
-//   $> trkml-hough [OPTIONS] <path-to-dataset> <evtid-prefix>
+//   $> trkml-hough [OPTIONS] <path-to-dataset> <evtid-prefix> [<path-to-test-dataset]
 //
 // Examples:
 //
@@ -25,10 +25,14 @@
 //     	enable CPU profiling
 //   -prof-mem
 //     	enable MEM profiling
+//   -submit
+//     	create a submission file
 //
 package main
 
 import (
+	"compress/gzip"
+	"encoding/csv"
 	"flag"
 	"fmt"
 	"log"
@@ -46,6 +50,7 @@ func main() {
 	log.SetPrefix("trkml-hough: ")
 
 	ncpus := flag.Int("ncpus", 1, "number of goroutines to use for the prediction")
+	flagSubmit := flag.Bool("submit", false, "create a submission file")
 	profCPU := flag.Bool("prof-cpu", false, "enable CPU profiling")
 	profMEM := flag.Bool("prof-mem", false, "enable MEM profiling")
 
@@ -54,7 +59,7 @@ func main() {
 
 Usage:
 
-  $> trkml-hough [OPTIONS] <path-to-dataset> <evtid-prefix>
+  $> trkml-hough [OPTIONS] <path-to-dataset> <evtid-prefix> [<path-to-test-dataset]
 
 Examples:
 
@@ -147,4 +152,53 @@ Options:
 	log.Printf("loading the whole dataset %q... [done]", path)
 
 	log.Printf("mean score: %v", stat.Mean(scores, nil))
+
+	if *flagSubmit {
+		w, err := os.Create("submission.csv.gz")
+		if err != nil {
+			log.Fatalf("could not create submission file: %v", err)
+		}
+		defer w.Close()
+
+		gw := gzip.NewWriter(w)
+		o := csv.NewWriter(gw)
+		sub := trackml.NewSubmission(o)
+		defer sub.Close()
+
+		test := flag.Arg(2)
+		if test == "" {
+			flag.Usage()
+			log.Fatalf("missing test dataset")
+		}
+
+		log.Printf("loading test dataset %q...", test)
+		ds, err := trackml.NewDataset(test, 0, -1, trackml.ReadEvent)
+		if err != nil {
+			log.Fatalf("could not open test dataset %q: %v", test, err)
+		}
+		for ds.Next() {
+			evt = ds.Event()
+			var labels []int
+			labels, err = model.Predict(evt.Hits)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			err = sub.Append(evt, labels)
+			if err != nil {
+				log.Fatalf("could not append event %v to submission: %v", evt.ID, err)
+			}
+		}
+		if err := ds.Err(); err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("loading test dataset %q... [done]", test)
+
+		if err := sub.Close(); err != nil {
+			log.Fatalf("could not close submission: %v", err)
+		}
+		if err := w.Close(); err != nil {
+			log.Fatalf("could not close submission file: %v", err)
+		}
+	}
 }
