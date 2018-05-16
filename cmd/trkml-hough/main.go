@@ -181,6 +181,7 @@ Options:
 		}
 		for ds.Next() {
 			evt = ds.Event()
+			log.Printf("processing event %v...", evt.ID)
 			var labels []int
 			labels, err = model.Predict(evt.Hits)
 			if err != nil {

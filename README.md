@@ -118,6 +118,37 @@ user  1m26.658s
 sys   0m0.741s
 ```
 
+## Submission
+
+```sh
+$> time trkml-hough -ncpus=-1 -submit ./train_sample.zip event000001000 ./test.zip 
+trkml-hough: loading [event000001000 from ./train_sample.zip]...
+trkml-hough: loading [event000001000 from ./train_sample.zip]... [done]
+trkml-hough: score for event 1000: 0.14063594336939647
+trkml-hough: loading the whole dataset "./train_sample.zip"...
+trkml-hough: score for event 1000: 0.14063594336939647
+trkml-hough: score for event 1001: 0.15109432405046952
+trkml-hough: score for event 1002: 0.134897692773808
+trkml-hough: score for event 1003: 0.1474692054660444
+trkml-hough: score for event 1004: 0.13474093093042283
+trkml-hough: loading the whole dataset "./train_sample.zip"... [done]
+trkml-hough: mean score: 0.14176761931802823
+trkml-hough: loading test dataset "./test.zip"...
+trkml-hough: processing event 0...
+trkml-hough: processing event 1...
+trkml-hough: processing event 2...
+[...]
+trkml-hough: processing event 124...
+trkml-hough: loading test dataset "./test.zip"... [done]
+
+real	19m40.461s
+user	57m14.608s
+sys	0m10.350s
+
+$> ll submission.csv.gz
+-rw-r--r-- 1 binet binet 44M May 16 17:57 submission.csv.gz
+```
+
 [cern]: https://home.cern
 [lhc]: https://home.cern/topics/large-hadron-collider
 [kaggle_trackml]: https://www.kaggle.com/c/trackml-particle-identification

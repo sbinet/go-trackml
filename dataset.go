@@ -87,7 +87,13 @@ func ReadMcEvent(path, evtid string) (Event, error) {
 		return evt, errors.Wrapf(err, "could not read event")
 	}
 
-	evt.Mcs, err = readMcTruth(filepath.Join(ds.dir, evtid) + "-truth.csv")
+	fname := filepath.Join(ds.dir, evtid)
+	evt.Ps, err = readParticles(fname + "-particles.csv")
+	if err != nil {
+		return evt, errors.Wrapf(err, "could not read particles")
+	}
+
+	evt.Mcs, err = readMcTruth(fname + "-truth.csv")
 	if err != nil {
 		return evt, errors.Wrapf(err, "could not read truth")
 	}
@@ -213,11 +219,6 @@ func readEvent(dir, evtid string) (Event, error) {
 	evt.Cells, err = readCells(fname + "-cells.csv")
 	if err != nil {
 		return evt, errors.Wrapf(err, "could not read cells")
-	}
-
-	evt.Ps, err = readParticles(fname + "-particles.csv")
-	if err != nil {
-		return evt, errors.Wrapf(err, "could not read particles")
 	}
 
 	return evt, err
