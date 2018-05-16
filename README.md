@@ -35,9 +35,9 @@ Usage:
 
 Examples:
 
-  $> trkml-hough ./example_standard/dataset/event000000200
-  $> trkml-hough -npcus=+1 ./example_standard/dataset/event000000200
-  $> trkml-hough -npcus=-1 ./example_standard/dataset/event000000200
+  $> trkml-hough ./example_standard/dataset event000000200
+  $> trkml-hough -npcus=+1 ./example_standard/dataset event000000200
+  $> trkml-hough -npcus=-1 ./example_standard/dataset event000000200
   $> trkml-hough -npcus=-1 ./train_sample.zip event000001000
 
 Options:
@@ -62,7 +62,7 @@ total 56M
 -rw-r--r-- 1 binet binet 967K Apr 25 18:36 event000000201-particles.csv
 -rw-r--r-- 1 binet binet  10M Apr 25 18:36 event000000201-truth.csv
 
-$> time trkml-hough ./example_standard/dataset/event000000200
+$> time trkml-hough ./example_standard/dataset event000000200
 trkml-hough: loading [event000000200 from ./example_standard/dataset]...
 trkml-hough: loading [event000000200 from ./example_standard/dataset]... [done]
 trkml-hough: score for event 200: 0.1316012364071201
@@ -80,7 +80,7 @@ sys   0m0.569s
 Compare to the Python version:
 
 ```sh
-$> time python trkml-hough.py ./example_standard/dataset/event000000200
+$> time python trkml-hough.py ./example_standard/dataset event000000200
    hit_id          x         y       z  volume_id  layer_id  module_id
 0       1 -62.663200  -3.05090 -1502.5          7         2          1
 1       2 -66.124702  -1.36730 -1502.5          7         2          1
@@ -103,7 +103,7 @@ sys   0m0.828s
 The simple `trkml-hough` command leverages them:
 
 ```sh
-$> time trkml-hough -ncpus=-1 ./example_standard/dataset/event000000200
+$> time trkml-hough -ncpus=-1 ./example_standard/dataset event000000200
 trkml-hough: loading [event000000200 from ./example_standard/dataset]...
 trkml-hough: loading [event000000200 from ./example_standard/dataset]... [done]
 trkml-hough: score for event 200: 0.13160123640712013
