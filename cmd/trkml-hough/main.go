@@ -8,13 +8,14 @@
 //
 // Usage:
 //
-//   $> trkml-hough [OPTIONS] <path-to-dataset>
+//   $> trkml-hough [OPTIONS] <path-to-dataset> <evtid-prefix>
 //
 // Examples:
 //
-//   $> trkml-hough ./example_standard/dataset/event000000200
-//   $> trkml-hough -npcus=+1 ./example_standard/dataset/event000000200
-//   $> trkml-hough -npcus=-1 ./example_standard/dataset/event000000200
+//   $> trkml-hough ./example_standard/dataset event000000200
+//   $> trkml-hough -npcus=+1 ./example_standard/dataset event000000200
+//   $> trkml-hough -npcus=-1 ./example_standard/dataset event000000200
+//   $> trkml-hough -npcus=-1 ./train_sample.zip event000001000
 //
 // Options:
 //
@@ -53,13 +54,14 @@ func main() {
 
 Usage:
 
-  $> trkml-hough [OPTIONS] <path-to-dataset>
+  $> trkml-hough [OPTIONS] <path-to-dataset> <evtid-prefix>
 
 Examples:
 
-  $> trkml-hough ./example_standard/dataset/event000000200
-  $> trkml-hough -npcus=+1 ./example_standard/dataset/event000000200
-  $> trkml-hough -npcus=-1 ./example_standard/dataset/event000000200
+  $> trkml-hough ./example_standard/dataset event000000200
+  $> trkml-hough -npcus=+1 ./example_standard/dataset event000000200
+  $> trkml-hough -npcus=-1 ./example_standard/dataset event000000200
+  $> trkml-hough -npcus=-1 ./train_sample.zip event000001000
 
 Options:
 
@@ -79,18 +81,23 @@ Options:
 		defer profile.Start(profile.MemProfile).Stop()
 	}
 
-	fname := flag.Arg(0)
-	if fname == "" {
+	path := flag.Arg(0)
+	if path == "" {
 		flag.Usage()
 		log.Fatalf("missing path to event dataset")
 	}
+	evtid := flag.Arg(1)
+	if evtid == "" {
+		flag.Usage()
+		log.Fatalf("missing event ID within dataset")
+	}
 
-	log.Printf("loading [%s]...", fname)
-	evt, err := trackml.ReadMcEvent(fname)
+	log.Printf("loading [%s from %s]...", evtid, path)
+	evt, err := trackml.ReadMcEvent(path, evtid)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("loading [%s]... [done]", fname)
+	log.Printf("loading [%s from %s]... [done]", evtid, path)
 
 	//	log.Printf("hits:  %d", len(evt.Hits))
 	//	log.Printf("cells: %d", len(evt.Cells))
@@ -114,10 +121,9 @@ Options:
 	score := trackml.Score(evt, labels)
 	log.Printf("score for event %v: %v", evt.ID, score)
 
-	dsname := "./example_standard/dataset"
-	log.Printf("loading the whole dataset %q...", dsname)
+	log.Printf("loading the whole dataset %q...", path)
 	var scores []float64
-	ds, err := trackml.NewDataset(dsname, 0, 5, nil)
+	ds, err := trackml.NewDataset(path, 0, 5, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -138,7 +144,7 @@ Options:
 	if err := ds.Err(); err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("loading the whole dataset %q... [done]", dsname)
+	log.Printf("loading the whole dataset %q... [done]", path)
 
 	log.Printf("mean score: %v", stat.Mean(scores, nil))
 }

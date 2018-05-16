@@ -31,13 +31,14 @@ trkml-hough uses a Hough transform to make predictions.
 
 Usage:
 
-  $> trkml-hough [OPTIONS] <path-to-dataset>
+  $> trkml-hough [OPTIONS] <path-to-dataset> <evtid-prefix>
 
 Examples:
 
   $> trkml-hough ./example_standard/dataset/event000000200
   $> trkml-hough -npcus=+1 ./example_standard/dataset/event000000200
   $> trkml-hough -npcus=-1 ./example_standard/dataset/event000000200
+  $> trkml-hough -npcus=-1 ./train_sample.zip event000001000
 
 Options:
 
@@ -60,8 +61,8 @@ total 56M
 -rw-r--r-- 1 binet binet  10M Apr 25 18:36 event000000201-truth.csv
 
 $> time trkml-hough ./example_standard/dataset/event000000200
-trkml-hough: loading [./example_standard/dataset/event000000200]...
-trkml-hough: loading [./example_standard/dataset/event000000200]... [done]
+trkml-hough: loading [event000000200 from ./example_standard/dataset]...
+trkml-hough: loading [event000000200 from ./example_standard/dataset]... [done]
 trkml-hough: score for event 200: 0.1316012364071201
 trkml-hough: loading the whole dataset "./example_standard/dataset"...
 trkml-hough: score for event 200: 0.1316012364071201
@@ -101,8 +102,8 @@ The simple `trkml-hough` command leverages them:
 
 ```sh
 $> time trkml-hough -ncpus=-1 ./example_standard/dataset/event000000200
-trkml-hough: loading [./example_standard/dataset/event000000200]...
-trkml-hough: loading [./example_standard/dataset/event000000200]... [done]
+trkml-hough: loading [event000000200 from ./example_standard/dataset]...
+trkml-hough: loading [event000000200 from ./example_standard/dataset]... [done]
 trkml-hough: score for event 200: 0.13160123640712013
 trkml-hough: loading the whole dataset "./example_standard/dataset"...
 trkml-hough: score for event 200: 0.1316012364071201

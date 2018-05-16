@@ -6,7 +6,9 @@
 package trackml
 
 import (
+	"archive/zip"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -68,18 +70,24 @@ func (evt *Event) Delete() {
 
 // ReadMcEvent reads a complete Event value from the given path+prefix,
 // including Monte-Carlo informations.
-func ReadMcEvent(fname string) (Event, error) {
+func ReadMcEvent(path, evtid string) (Event, error) {
 	var (
 		evt Event
 		err error
 	)
 
-	evt, err = ReadEvent(fname)
+	ds, err := openDataset(path, evtid)
 	if err != nil {
-		return evt, errors.Wrapf(err, "could not read hits")
+		return evt, errors.Wrapf(err, "could not open resource %q", path)
+	}
+	defer ds.Close()
+
+	evt, err = readEvent(ds.dir, evtid)
+	if err != nil {
+		return evt, errors.Wrapf(err, "could not read event")
 	}
 
-	evt.Mcs, err = readMcTruth(fname + "-truth.csv")
+	evt.Mcs, err = readMcTruth(filepath.Join(ds.dir, evtid) + "-truth.csv")
 	if err != nil {
 		return evt, errors.Wrapf(err, "could not read truth")
 	}
@@ -89,19 +97,114 @@ func ReadMcEvent(fname string) (Event, error) {
 
 // ReadEvent reads a complete Event value from the given path+prefix,
 // but without the Monte-Carlo informations.
-func ReadEvent(fname string) (Event, error) {
+func ReadEvent(path, evtid string) (Event, error) {
 	var (
 		evt Event
 		err error
 	)
 
-	id := filepath.Base(fname)
-	id = strings.TrimLeft(id, "event")
+	ds, err := openDataset(path, evtid)
+	if err != nil {
+		return evt, errors.Wrapf(err, "could not open resource %q", path)
+	}
+	defer ds.Close()
+
+	return readEvent(ds.dir, evtid)
+}
+
+type datasetHandler struct {
+	dir string
+	rm  func() error
+}
+
+func (ds *datasetHandler) Close() error {
+	if ds.rm == nil {
+		return nil
+	}
+
+	err := ds.rm()
+	if err != nil {
+		return errors.Wrapf(err, "could not cleanup temporary files")
+	}
+	return nil
+}
+
+func openDataset(fname, evtid string) (datasetHandler, error) {
+	var (
+		ds  = datasetHandler{dir: fname}
+		err error
+	)
+
+	f, err := os.Open(fname)
+	if err != nil {
+		return ds, err
+	}
+	defer f.Close()
+
+	fi, err := f.Stat()
+	if err != nil {
+		return ds, err
+	}
+
+	if fi.IsDir() {
+		return ds, nil
+	}
+
+	zr, err := zip.NewReader(f, fi.Size())
+	if err != nil {
+		return ds, errors.Wrapf(err, "could not open zip-dataset")
+	}
+
+	tmpdir, err := ioutil.TempDir("", "trkml-")
+	if err != nil {
+		return ds, errors.Wrapf(err, "could not create temporary directory for zip-dataset")
+	}
+	ds.rm = func() error {
+		return os.RemoveAll(tmpdir)
+	}
+	for _, f := range zr.File {
+		if !strings.HasPrefix(filepath.Base(f.Name), evtid) {
+			continue
+		}
+		oname := filepath.Join(tmpdir, f.Name)
+		err = os.MkdirAll(filepath.Dir(oname), 0755)
+		if err != nil {
+			ds.rm()
+			return ds, errors.Wrapf(err, "could not create base directory for output partial event file %q", oname)
+		}
+		o, err := os.Create(oname)
+		if err != nil {
+			ds.rm()
+			return ds, errors.Wrapf(err, "could not create temporary output partial event file %q", oname)
+		}
+		zf, err := f.Open()
+		if err != nil {
+			ds.rm()
+			return ds, errors.Wrapf(err, "could not open zip archive partial event file %q", f.Name)
+		}
+		_, err = io.Copy(o, zf)
+		if err != nil {
+			ds.rm()
+			return ds, errors.Wrapf(err, "could extract partial event file %q", f.Name)
+		}
+		ds.dir = filepath.Dir(filepath.Join(tmpdir, f.Name))
+	}
+	return ds, nil
+}
+
+func readEvent(dir, evtid string) (Event, error) {
+	var (
+		evt Event
+		err error
+	)
+
+	id := strings.TrimLeft(evtid, "event")
 	evt.ID, err = strconv.Atoi(id)
 	if err != nil {
 		return evt, errors.Wrapf(err, "could not infer event ID")
 	}
 
+	fname := filepath.Join(dir, evtid)
 	evt.Hits, err = readHits(fname + "-hits.csv")
 	if err != nil {
 		return evt, errors.Wrapf(err, "could not read hits")
@@ -241,7 +344,7 @@ func readMcTruth(fname string) ([]Truth, error) {
 }
 
 // EventReader is a function to read an event from a path
-type EventReader func(path string) (Event, error)
+type EventReader func(path, evtid string) (Event, error)
 
 // Dataset is an Event container.
 //
@@ -269,6 +372,19 @@ type Dataset struct {
 	err error
 }
 
+func (ds *Dataset) Close() error {
+	if ds.err != nil {
+		return ds.err
+	}
+
+	return ds.err
+}
+
+// Names returns the list of event IDs this dataset contains.
+func (ds *Dataset) Names() []string {
+	return ds.names
+}
+
 func (ds *Dataset) Next() bool {
 	if ds.err != nil {
 		return false
@@ -278,7 +394,8 @@ func (ds *Dataset) Next() bool {
 	if ds.cur >= len(ds.names) {
 		return false
 	}
-	evt, err := ds.readEvent(ds.names[ds.cur])
+	id := filepath.Base(ds.names[ds.cur])
+	evt, err := ds.readEvent(ds.path, id)
 	if err != nil {
 		ds.err = err
 		return false
@@ -329,22 +446,30 @@ func NewDataset(name string, beg, end int, reader EventReader) (Dataset, error) 
 	switch {
 	case fi.IsDir():
 		names, err = filepath.Glob(filepath.Join(name, "*-hits.csv"))
-		// names, err = f.Readdirnames(-1)
 		if err != nil {
 			return ds, err
 		}
-		sort.Strings(names)
-		ds.names = names
-		ds.names = ds.names[beg:]
-		if end == -1 || end > len(ds.names) {
-			end = len(ds.names)
-		}
-		ds.names = ds.names[:end]
-		for i, n := range ds.names {
-			ds.names[i] = n[:len(n)-len("-hits.csv")]
-		}
 	default:
-		return ds, errors.Wrapf(err, "could not handle path %q", name)
+		zr, err := zip.NewReader(f, fi.Size())
+		if err != nil {
+			return ds, errors.Wrapf(err, "could not handle path %q", name)
+		}
+		for _, f := range zr.File {
+			if !strings.HasSuffix(f.Name, "-hits.csv") {
+				continue
+			}
+			names = append(names, f.Name)
+		}
+	}
+	sort.Strings(names)
+	ds.names = names
+	ds.names = ds.names[beg:]
+	if end == -1 || end > len(ds.names) {
+		end = len(ds.names)
+	}
+	ds.names = ds.names[:end]
+	for i, n := range ds.names {
+		ds.names[i] = n[:len(n)-len("-hits.csv")]
 	}
 	return ds, nil
 }
