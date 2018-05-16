@@ -31,8 +31,6 @@
 package main
 
 import (
-	"compress/gzip"
-	"encoding/csv"
 	"flag"
 	"fmt"
 	"log"
@@ -154,17 +152,9 @@ Options:
 	log.Printf("mean score: %v", stat.Mean(scores, nil))
 
 	if *flagSubmit {
-		w, err := os.Create("submission.csv.gz")
+		sub, err := trackml.NewSubmission()
 		if err != nil {
 			log.Fatalf("could not create submission file: %v", err)
-		}
-		defer w.Close()
-
-		gw := gzip.NewWriter(w)
-		o := csv.NewWriter(gw)
-		sub, err := trackml.NewSubmission(o)
-		if err != nil {
-			log.Fatalf("could not create submission: %v", err)
 		}
 		defer sub.Close()
 
@@ -200,9 +190,6 @@ Options:
 
 		if err := sub.Close(); err != nil {
 			log.Fatalf("could not close submission: %v", err)
-		}
-		if err := w.Close(); err != nil {
-			log.Fatalf("could not close submission file: %v", err)
 		}
 	}
 }
