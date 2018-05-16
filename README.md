@@ -3,7 +3,7 @@
 [![GoDoc](https://godoc.org/github.com/sbinet/go-trackml?status.svg)](https://godoc.org/github.com/sbinet/go-trackml)
 
 
-`trackml` is a Go package to simplify working with the [High Energy Physics Tracking Machine Learning challenge][kaggle_trachml].
+`trackml` is a Go package to simplify working with the [High Energy Physics Tracking Machine Learning challenge][kaggle_trackml].
 
 For more informations about the minute details of what `go-trackml` tries to do, please have a look at the Python version:
 
@@ -120,5 +120,4 @@ sys   0m0.741s
 
 [cern]: https://home.cern
 [lhc]: https://home.cern/topics/large-hadron-collider
-[kaggle_trachml]: https://www.kaggle.com/c/trackml-particle-identification
-
+[kaggle_trackml]: https://www.kaggle.com/c/trackml-particle-identification
