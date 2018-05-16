@@ -16,8 +16,13 @@ type Submission struct {
 	w *csv.Writer
 }
 
-func NewSubmission(w *csv.Writer) *Submission {
-	return &Submission{w: w}
+func NewSubmission(w *csv.Writer) (*Submission, error) {
+	err := w.Write([]string{"event_id", "hit_id", "track_id"})
+	if err != nil {
+		return nil, err
+	}
+	w.Flush()
+	return &Submission{w: w}, w.Error()
 }
 
 func (sub *Submission) Close() error {

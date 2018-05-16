@@ -162,7 +162,10 @@ Options:
 
 		gw := gzip.NewWriter(w)
 		o := csv.NewWriter(gw)
-		sub := trackml.NewSubmission(o)
+		sub, err := trackml.NewSubmission(o)
+		if err != nil {
+			log.Fatalf("could not create submission: %v", err)
+		}
 		defer sub.Close()
 
 		test := flag.Arg(2)
