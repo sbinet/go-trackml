@@ -8,15 +8,15 @@ import (
 	trackml "github.com/sbinet/go-trackml"
 )
 
-// Predictor predicts clusters of hits.
-type Predictor interface {
+// Classifier clusters hits.
+type Classifier interface {
 	Predict(hits []trackml.Hit) ([]int, error)
 }
 
-func New(nWorkers, nbinsR0Inv, nbinsGamma, nbinsTheta, minHits int) Predictor {
+func New(nWorkers, nbinsR0Inv, nbinsGamma, nbinsTheta, minHits int) Classifier {
 	switch {
 	case nWorkers > 1:
-		return &ppred{
+		return &pcluster{
 			nWorkers:   nWorkers,
 			nbinsR0Inv: nbinsR0Inv,
 			nbinsGamma: nbinsGamma,
@@ -24,7 +24,7 @@ func New(nWorkers, nbinsR0Inv, nbinsGamma, nbinsTheta, minHits int) Predictor {
 			minHits:    minHits,
 		}
 	default:
-		return &spred{
+		return &scluster{
 			nbinsR0Inv: nbinsR0Inv,
 			nbinsGamma: nbinsGamma,
 			nbinsTheta: nbinsTheta,

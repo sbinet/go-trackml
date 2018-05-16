@@ -13,8 +13,8 @@ import (
 	"gonum.org/v1/gonum/floats"
 )
 
-// ppred clusters hits in parallel via its Predict method.
-type ppred struct {
+// pcluster clusters hits in parallel via its Predict method.
+type pcluster struct {
 	nWorkers   int
 	nbinsR0Inv int
 	nbinsGamma int
@@ -23,8 +23,8 @@ type ppred struct {
 }
 
 // Predict clusters hits.
-func (pred *ppred) Predict(hits []trackml.Hit) ([]int, error) {
-	workers := make([]worker, pred.nWorkers)
+func (pcl *pcluster) Predict(hits []trackml.Hit) ([]int, error) {
+	workers := make([]worker, pcl.nWorkers)
 	for i := range workers {
 		workers[i].tracks = make(map[int][][]int)
 	}
@@ -38,7 +38,7 @@ func (pred *ppred) Predict(hits []trackml.Hit) ([]int, error) {
 
 	for i := range workers {
 		wrk := &workers[i]
-		wrk.pred = pred
+		wrk.pcl = pcl
 		wrk.h = hough.New(hits)
 		go func(wrk *worker) {
 			defer grp.Done()
@@ -48,7 +48,7 @@ func (pred *ppred) Predict(hits []trackml.Hit) ([]int, error) {
 		}(wrk)
 	}
 
-	theta := make([]float64, pred.nbinsTheta)
+	theta := make([]float64, pcl.nbinsTheta)
 	floats.Span(theta, -math.Pi, +math.Pi)
 	for i, v := range theta {
 		ch <- index{i, v}
@@ -81,7 +81,7 @@ func (pred *ppred) Predict(hits []trackml.Hit) ([]int, error) {
 				slice = append(slice, hit)
 			}
 		}
-		if len(slice) >= pred.minHits {
+		if len(slice) >= pcl.minHits {
 			for _, v := range slice {
 				labels[v] = trackID
 				used[v] = struct{}{}
@@ -93,11 +93,11 @@ func (pred *ppred) Predict(hits []trackml.Hit) ([]int, error) {
 }
 
 type worker struct {
-	pred   *ppred
+	pcl    *pcluster
 	h      *hough.Hough
 	tracks map[int][][]int
 }
 
 func (wrk *worker) run(i int, theta float64) {
-	wrk.tracks[i] = wrk.h.Calc(wrk.tracks[i], theta, wrk.pred.nbinsR0Inv, wrk.pred.nbinsGamma, wrk.pred.minHits)
+	wrk.tracks[i] = wrk.h.Calc(wrk.tracks[i], theta, wrk.pcl.nbinsR0Inv, wrk.pcl.nbinsGamma, wrk.pcl.minHits)
 }

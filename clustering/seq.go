@@ -12,8 +12,8 @@ import (
 	"gonum.org/v1/gonum/floats"
 )
 
-// spred predicts clusters hits.
-type spred struct {
+// scluster clusters hits.
+type scluster struct {
 	nbinsR0Inv int
 	nbinsGamma int
 	nbinsTheta int
@@ -21,15 +21,15 @@ type spred struct {
 }
 
 // Predict clusters hits.
-func (pred *spred) Predict(hits []trackml.Hit) ([]int, error) {
+func (scl *scluster) Predict(hits []trackml.Hit) ([]int, error) {
 	h := hough.New(hits)
 
-	theta := make([]float64, pred.nbinsTheta)
+	theta := make([]float64, scl.nbinsTheta)
 	floats.Span(theta, -math.Pi, +math.Pi)
 
 	var tracks [][]int
 	for _, v := range theta {
-		tracks = h.Calc(tracks, v, pred.nbinsR0Inv, pred.nbinsGamma, pred.minHits)
+		tracks = h.Calc(tracks, v, scl.nbinsR0Inv, scl.nbinsGamma, scl.minHits)
 	}
 
 	trackID := 0
@@ -42,7 +42,7 @@ func (pred *spred) Predict(hits []trackml.Hit) ([]int, error) {
 				slice = append(slice, hit)
 			}
 		}
-		if len(slice) >= pred.minHits {
+		if len(slice) >= scl.minHits {
 			for _, v := range slice {
 				labels[v] = trackID
 				used[v] = struct{}{}
